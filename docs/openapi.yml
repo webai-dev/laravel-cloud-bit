@@ -1,0 +1,2196 @@
+openapi: 3.0.0
+info:
+  title: yBit API
+  description: The internal yBit web API
+  version: 1.0.0
+  
+servers:
+  - url: http://api.ybit.stage.monospacelabs.com
+    description: The staging server
+  - url: https://api.ybit.io
+    description: The production server
+
+security:
+  - JWT: []
+  
+paths:
+  /apparatus:
+    get:
+      summary: Get Apparatus token
+      tags:
+        - Apparatus
+      responses:
+        200:
+          description: The token required to log in using Apparatus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+    post:
+      summary: Apparatus Log In
+      tags:
+        - Apparatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: The apparatus directive token
+      responses:
+        200:
+          description: The logged in user
+  /apparatus/sync:
+    post:
+      summary: Get Apparatus user
+      tags:
+        - Apparatus
+      description: Get the user info from the user's Apparatus account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                directive_id:
+                  type: string
+      responses:
+        200:
+          description: The apparatus user fields
+  /apparatus/magic-link:
+    post:
+      summary: Send Magic Link
+      tags:
+        - Apparatus
+      description: Send a magic link to the user's email, creating an Apparatus user if missing
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+      responses:
+        200:
+          description: The apparatus user fields
+  /account:
+    get:
+      summary: User Account
+      description: Returns The details of the user's account
+      tags:
+        - Account
+      responses:
+        200:
+          description: The user object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      summary: Update Account
+      description: Updates account fields
+      tags:
+        - Account
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                photo:
+                  type: string
+                  description: The URL of the new photo
+      responses:
+        200:
+          description: The updated account object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    delete:
+      summary: Close Account
+      description: Closes the account, transferring all contents to the owner of the team
+      tags:
+        - Account
+      responses:
+        200:
+          description: The account closed successfully
+        400:
+          description: The account is the owner of one or more teams, ownership must be transferred before continuing
+  /teams:
+    get:
+      summary: User Teams
+      description: Returns all teams the current user is in
+      tags:
+        - Teams
+      responses:
+        200:
+          description: The list of the user's current teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Team'
+    post:
+      summary: Create Team
+      description: Creates a new team for the current user
+      tags: 
+        - Teams
+      requestBody:
+        description: The team to be created
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Team'
+      responses:
+        200:
+          description: Team has been created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+  /teams/subdomain:
+    get:
+      summary: Validate team subdomain
+      description: Validates a subdomain for a team
+      tags:
+        - Teams
+      parameters:
+        - in: query
+          name: subdomain
+          schema:
+            type: string
+            required: true
+            description: A subdomain to validate against
+      responses:
+        200:
+          description: The provided subdomain is valid
+        400:
+          description: The provided subdomain is invalid because it is blacklisted
+        422:
+          description: The provided subdomain already exists or has invalid characters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/ValidationFailed'
+  /teams/{id}:
+    parameters: 
+    - in: path
+      name: id
+      schema:
+        type: integer
+      required: true
+      description: The team id
+    get:
+      tags:
+        - Teams
+      summary: Team details
+      description: Fetches the details of the team
+      responses:
+        200:
+          description: The team details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+    put:
+      tags:
+        - Teams
+      summary: Update team
+      description: Updates the details of a team
+      requestBody:
+        description: The team to be updated
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Team'
+      responses:
+        200:
+          description: Team has been updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'      
+    delete:
+      tags:
+        - Teams
+      summary: Close team
+      description: Closes a team, deleting all content in it. Only owners of teams can close them.
+      responses:
+        200:
+          description: Team has been deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Team'
+  /teams/{id}/transfer:
+    put:
+      tags:
+        - Teams
+      summary: Transfer Ownership
+      description: Transfer the ownership of a team to another user of the team
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+          description: The team id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_id:
+                  type: integer
+                  description: The id of the user to transfer the team to
+      responses:
+        200:
+          description: Ownership transferred successfully
+  /teams/{id}/users/{userId}:
+    parameters: 
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The team id
+      - in: path
+        name: userId
+        schema:
+          type: integer
+        required: true
+        description: The user id
+    delete:
+      summary: Remove User
+      description: Removes a user from a team
+      tags: 
+        - Teams
+      responses:
+        200:
+          description: The user has been removed
+    put:
+      summary: Change user role
+      description: Changes the role of a team user
+      tags:
+        - Teams
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role_id:
+                  type: integer
+                  description: The id of the role to assign to this user
+      responses:
+        200:
+          description: The role of the user changed successfully
+  /teams/{id}/users/{user}/ban:
+    put:
+      summary: Ban team user
+      description: Bans the user from accessing the team, without deleting their data
+      tags:
+        - Teams
+      parameters:
+        - in: path
+          name: id
+          description: The id of the team
+          schema:
+            type: integer
+        - in: path
+          name: user
+          description: The id of the user to ban
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The user was banned
+  /teams/{id}/users:
+    parameters: 
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The team id
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: A string to search for in user's emails
+    get:
+      summary: Team Users
+      description: Show users of a team
+      tags: 
+        - Teams
+      responses:
+        200:
+          description: The team users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+  /teams/{id}/search:
+    parameters: 
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The team id
+      - in: query
+        name: search
+        schema:
+          type: string
+        description: A string to search
+      - in: query
+        name: detailed
+        schema:
+          type: boolean
+        description: Whether to retrieve detailed information about the search results
+      - in: query
+        name: date
+        description: A date after which to filter the results based on last modified
+      - in: query
+        name: shareable_type
+        description: The type of the shareable item
+        schema:
+          type: string
+          enum: [file, folder, bit]
+      - in: query
+        name: tags
+        description: Any tags to search for
+        schema:
+          type: array
+          items:
+            type: string
+      - in: query
+        name: shared_with
+        description: Users that the results should be shared with
+        schema:
+          type: array
+          items:
+            type: integer
+            description: The ids of the shared users
+      - in: query
+        name: owner
+        description: The id of the owner the results should have
+    get:
+      summary: Search in team
+      description: Returns search results of a team
+      tags: 
+        - Teams
+      responses:
+        200:
+          description: The search results depending on the 'detailed' parameter
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/responses/DetailedSearch'
+                  - $ref: '#/components/responses/Search'
+  /teams/{id}/invitations:
+    parameters: 
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The team id
+    get:
+      summary: Team Invitations
+      description: Show invitations of a team
+      tags: 
+        - Teams
+      responses:
+        200:
+          description: The team invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invitation'
+  /teams/{id}/integrations:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+    get:
+      summary: Team Integrations
+      tags:
+        - Team Integrations
+      description: Retrieves the active integrations for the team
+      responses:
+        200:
+          description: A list of the available integrations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Integration'
+    post:
+      summary: Create Team Integration
+      tags:
+        - Team Integrations
+      description: Creates a new team integration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Integration'
+      responses:
+        200:
+          description: The created integration
+  /teams/{teamId}/integrations/{integrationId}:
+    parameters:
+      - in: path
+        name: teamId
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: integrationId
+        schema:
+          type: integer
+        required: true
+    put:
+      summary: Update Team Integration
+      tags:
+        - Team Integrations
+      description: Update a team integration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Integration'
+      responses:
+        200:
+          description: The updated integration
+    delete:
+      summary: Delete Team Integration
+      tags:
+        - Team Integrations
+      description: Deletes a team integration; note that subsequently generated keys will differ
+      responses:
+        200:
+          description: The deleted integration
+  /photos:
+    post:
+      summary: Upload Photo
+      description: Uploads a new photo
+      tags: 
+        - Photos
+      requestBody:
+        description: The photo to be uploaded
+        content:
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/jpg:
+            schema:
+              type: string
+              format: binary
+      responses:
+        200:
+          description: The urls of the uploaded photos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /invitations:
+    get:
+      summary: User Invitations
+      description: Returns the pending invitations of the user for all teams
+      tags:
+        - Invitations
+      responses:
+        200:
+          description: An array of invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+    post:
+      summary: Create Invitations
+      description: Creates and sends invitations
+      tags: 
+        - Invitations
+      requestBody:
+        description: The Invitation
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contacts:
+                  description: An array of contact details, either emails or phones
+                  type: array
+                  items:
+                    type: string
+                team_id:
+                  type: integer
+                  description: The team to create the invitation for
+      responses:
+        200:
+          description: The created invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'                
+  /invitations/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The invitation id
+    put:
+      summary: Update Invitation
+      description: Accepts or rejects an invitation
+      tags: 
+        - Invitations
+      requestBody:
+        description: The status change of the invitation
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accepted:
+                  type: boolean
+                  description: Whether the invitation was accepted
+      responses:
+        200:
+          description: The updated invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+    delete:
+      summary: Delete Invitation
+      description: Delete a pending invitation
+      tags: 
+        - Invitations
+      responses:
+        200:
+          description: The deleted invitation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'
+  /folders:
+    get:
+      summary: Show Subfolders
+      description: Show the folders contained in a folder
+      tags: [Folders]
+      parameters:
+        - in: query
+          name: team_id
+          schema:
+            type: integer
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The subfolders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: array
+                    description: The path of the folder
+                    items:
+                      type: string
+                  folders:
+                    type: array
+                    description: An array of subfolders
+                    items:
+                      $ref: '#/components/schemas/Folder'
+                  parent:
+                    type: object
+                    description: The parent folder
+                    $ref: '#/components/schemas/Folder'
+    post:
+      summary: Create Folder
+      description: Creates a new folder in a team, optionally in a subfolder
+      tags: [Folders]
+      requestBody:
+        description: The folder attributes
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Folder"
+      responses:
+        200:
+          description: The created folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+  /folders/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The folder id
+    put:
+      summary: Update Folder
+      description: Changes a folder title
+      tags: [Folders]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+      responses:
+        200:
+          description: The updated folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+    delete:
+      summary: Delete Folder
+      description: Delete a folder (non-recursively)
+      tags: [Folders]
+      responses:
+        200:
+          description: The deleted folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+  /folders/{id}/move:
+    put:
+      summary: Move Folder
+      description: Move a folder, including its subfolders, to another folder
+      tags: [Folders]
+      parameters:
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+          description: The id of the folder to move into
+        - in: path
+          name: id
+          schema:
+            type: integer
+          description: The id of the folder to move
+      responses:
+        200:
+          description: The moved folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+  /folders/{id}/trash:
+    delete:
+      summary: Trash Folder
+      description: Temporarily delete a folder
+      tags: [Folders]
+      parameters:
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The trashed folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+  /folders/{id}/activity:
+    get:
+      summary: Get Folders Activity
+      description: Show a specific folder's activity
+      tags: [Folders]
+      parameters:
+        - in: query
+          name: major
+          description: By not including this parameter, all activities will be fetched
+          schema:
+            type: integer
+            enum: [0,1]
+      responses: 
+        200:
+          $ref: '#/components/responses/Activity200'
+  /folders/{id}/lock:
+    put:
+      summary: Toggle Folder Lock
+      description: Lock/Unlock a folder
+      tags: [Folders]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: The folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Folder'
+  /folders/locked:
+    get:
+      summary: Locked Folders
+      description: Show a user's locked folders
+      tags: [Folders]
+      responses:
+        200:
+          description: The locked folders
+  /bits:
+    get:
+      tags: [Bits]
+      summary: Get bits of a folder
+      description: Returns all bits of a specified folder
+      parameters:
+        - in: query
+          name: team_id
+          schema:
+            type: integer
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+            enum: [title,created_at,updated_at]
+        - in: query
+          name: sort_order
+          schema:
+            type: string
+            enum: [asc,desc]
+      responses:
+        200:
+          description: The bits of the specified folder
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bit'
+    post:
+      summary: Create Bit
+      description: Creates a new bit in a team or in a folder
+      tags: [Bits]
+      requestBody:
+        description: The bit attributes
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Bit"
+      responses:
+        200:
+          description: The created bit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bit'
+  /bits/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The bit id
+    get:
+      summary: Show bit
+      tags:
+        - Bits
+      description: Shows the details of a bit
+      parameters:
+        - in: query
+          name: view
+          schema:
+            type: string
+            enum: [simple, detailed]
+          description: Whether to fetch the bit details or the info required to display it
+      responses:
+        200:
+          description: Either the details of the bit, or info to show its contents
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Bit'
+                  - $ref: '#/components/schemas/BitInfo'
+    put:
+      summary: Update bit
+      description: Changes a bit's title
+      tags: [Bits]
+      requestBody:
+        description: The bit attributes
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Bit"
+      responses:
+        200:
+          description: The updated bit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bit'
+    delete:
+      summary: Delete Bit
+      description: Delete a bit
+      tags: [Bits]
+      responses:
+        200:
+          description: The deleted bit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bit'
+  /bits/{id}/move:
+    put:
+      tags: [Bits]
+      summary: Move a bit
+      description: Moves a bit to the destination folder
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          description: The id of the bit to move
+        - in: query
+          name: folder_id
+          description: The target folder
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: The moved bit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bit'
+                
+  /bits/{id}/lock:
+    put:
+      summary: Toggle Bit Lock
+      description: Lock/Unlock a bit
+      tags: [Bits]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: The locked bit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bit'
+  /bits/{id}/trash:
+    put:
+      summary: Trash Bit
+      description: Temporarily delete a bit
+      tags:
+        - Bits
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: The bit to trash
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bit'
+  /bits/{id}/activity:
+    get:
+      summary: Get Bits Activity
+      description: Show a specific bit's activity
+      tags: [Bits]
+      parameters:
+        - in: query
+          name: major
+          description: By not including this parameter, all activities will be fetched
+          schema:
+            type: integer
+            enum: [0,1]
+      responses: 
+        200:
+          $ref: '#/components/responses/Activity200'
+  /bits/locked:
+    get:
+      summary: Locked Bits
+      description: Show a user's locked bits
+      tags: [Bits]
+      responses:
+        200:
+          description: The locked bits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bit'
+  /bits/types:
+    get:
+      summary: Bit Types
+      description: Show all available bit types
+      tags:
+        - Bits
+      responses:
+        200:
+          description: The list of bit types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BitType'
+  /bits/types/recent:
+    get:
+      summary: Recent Bit Types
+      description: Lists the bit types of the recently created bits
+      tags:
+        - Bits
+      responses:
+        200:
+          description: The list of recent bit types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BitType'
+  /files:
+    get:
+      tags: [Files]
+      summary: Get files of a folder
+      description: Returns all files of a specified folder
+      parameters:
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+        - in: query
+          name: sort_by
+          schema:
+            type: string
+            enum: [title,mime_type,extension,created_at,updated_at]
+        - in: query
+          name: sort_order
+          schema:
+            type: string
+            enum: [asc,desc]
+      responses:
+        200:
+          description: The files of the specified folder
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+    post:
+      tags: [Files]
+      summary: Upload a file
+      requestBody:
+        description: The file payload, along with team and folder ids
+        content:
+          application/www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                folder_id:
+                  type: integer
+                data:
+                  type: string
+                  format: binary
+      responses:
+        200:
+          description: The created file object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The file id      
+    get:
+      tags: [Files]
+      summary: Retrieve temporary download URL
+      responses:
+        200:
+          description: A temporary file url
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  expires:
+                    type: string
+                    format: date
+                    description: The expiration date of the url
+    put:
+      tags: [Files]
+      summary: Rename a file
+      parameters:
+        - in: query
+          name: team_id
+          schema:
+            type: integer
+          required: true
+        - in: query
+          name: title
+          schema:
+            type: string
+          description: The new file title
+      responses:
+        200:
+          description: The updated file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+    delete:
+      tags: [Files]
+      summary: Delete a file
+      responses:
+        200:
+          description: The deleted file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{id}/copy:
+    put:
+      tags: [Files]
+      summary: Copy a file
+      description: Copies an entire file to the destination folder
+      parameters:
+        - in: query
+          name: team_id
+          schema:
+            type: integer
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The new file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{id}/trash:
+    put:
+      summary: Trash File
+      description: Temporarily delete a file
+      tags: [Files]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: The file to trash
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{id}/publish:
+    put:
+      tags: [Files]
+      summary: Publish a file
+      description: Sends the public link of a file to the specified recipients
+      parameters:
+        - in: query
+          name: addresses
+          description: An array of e-mail addresses
+          schema:
+            type: array
+      responses:
+        200:
+          description: The file was successfully sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{id}/link:
+    get:
+      tags: [Files]
+      summary: Get Public Link
+      description: Creates and retrieves the public link for a file
+      responses:
+        200:
+          description: The file was successfully sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    description: The public file link
+  /files/{id}/unpublish:
+    put:
+      tags: [Files]
+      summary: Unpublish a File
+      description: Invalidates the published status of the file
+      responses:
+        200:
+          description: The file public status was successfully revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{id}/activity:
+    get:
+      summary: Get file Activity
+      description: Show a specific file's activity
+      tags: [Files]
+      parameters:
+        - in: query
+          name: major
+          description: By not including this parameter, all activities will be fetched
+          schema:
+            type: integer
+            enum: [0,1]
+      responses: 
+        200:
+          $ref: '#/components/responses/Activity200'
+  /files/{id}/versions:
+    get:
+      tags: [File Versions]
+      summary: List File Versions
+      description: Retrieves all the versions of a file
+      responses:
+        200:
+          description: The file versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileVersion'
+    post:
+      tags: [File Versions]
+      summary: Upload File Version
+      description: Uploads a new version of a file
+      requestBody:
+        description: The upload file data
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: string
+                  format: binary
+                team_id:
+                  type: integer
+      responses:
+        200:
+          description: The new file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{fileId}/versions/{versionId}:
+    parameters:
+      - in: path
+        name: fileId
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: versionId
+        schema:
+          type: integer
+        required: true
+    get:
+      summary: Get File Version
+      description: Returns a temporary link to download the file version
+      tags:
+        - File Versions
+      responses:
+        200:
+          description: The file version details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title:
+                    type: string
+                  extension:
+                    type: string
+                  expires:
+                    type: string
+                    description: The duration of the url
+                  url:
+                    type: string
+    put:
+      summary: Update File Version
+      description: Change the name and/or the "keep" flag of the version
+      tags:
+        - File Versions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileVersion'
+      responses:
+        200:
+          description: The successfully updated version
+        400:
+          description: Occurs when the version's "keep" flag does not match the file's equivalent
+    delete:
+      summary: Delete File Version
+      description: Delete a file version
+      tags:
+        - File Versions
+      responses:
+        200:
+          description: The deleted version
+        400:
+          description: Occurs when trying to delete the current file version, and it is the only one.
+  /files/{id}/move:
+    put:
+      tags: [Files]
+      summary: Move a file
+      description: Moves an entire file to the destination folder
+      parameters:
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The moved file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/{id}/lock:
+    put:
+      summary: Toggle File Lock
+      description: Lock/Unlock a file
+      tags: [Files]
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: integer
+          required: true
+      responses:
+        200:
+          description: The locked file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+  /files/locked:
+    get:
+      summary: Locked Files
+      description: Show a user's locked files
+      tags: [Files]
+      responses:
+        200:
+          description: The locked files
+                
+  /pins:
+    get:
+      parameters:
+        - in: query
+          name: team_id
+          schema:
+            type: integer
+          required: true
+          description: The team id to get the pins for
+        - in: query
+          name: favourites
+          schema:
+            type: boolean
+          description: Whether to only retrieve favourited pins
+      summary: Get team pins
+      description: Shows all the pins of a team
+      tags: [Pins]
+      responses:
+        200:
+          description: The pin list
+          content:
+            application/json:
+              schema:
+                type: array
+    post:
+      summary: Create Pin
+      tags: [Pins]
+      description: Create a pin for a team
+      requestBody:
+        description: The Pin payload
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PinResponse'
+      responses:
+        200:
+          description:  The created pin
+  /pins/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+        description: The pin id to manipulate
+    get:
+      summary: Get Pin Details
+      description: Return pin details
+      tags: [Pins]
+      responses:
+        200:
+          description: The fetched pin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinResponse'
+    put:
+      summary: Update Pin
+      description: Update pin details
+      tags: [Pins]
+      requestBody:
+        description: The pin payload
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PinResponse'
+      responses:
+        200:
+          description: The updated pin
+    delete:
+      summary: Delete Pin
+      description: Remove Pin
+      tags: [Pins]
+      responses:
+        200:
+          description: The pin that was deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinResponse'
+  /shortcuts:
+    post:
+      summary: Create Shortcut
+      description: Creates a shortcut for a shared item
+      tags: [Shortcuts]
+      requestBody:
+        description: The shortcut parameters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                folder_id:
+                  type: integer
+                share_id:
+                  type: integer
+      responses:
+        200:
+          description: Shortcut was successfully created
+  /shortcuts/{id}/move:
+    put:
+      summary: Move Shortcut
+      description: Moves a shortcut to the specified folder, or to the root if no folder is specified.
+      tags: [Shortcuts]
+      parameters:
+        - in: query
+          name: folder_id
+          schema:
+            type: integer
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Shortcut was moved succesfully
+  /shortcuts/{id}:
+    delete:
+      summary: Delete Shortcut
+      description: Removes a shortcut from the user's tree
+      tags: [Shortcuts]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Shortcut was removed
+  /shares:
+    get:
+      summary: Shared Items
+      description: Returns all the shared items a user has in the specified team
+      tags: [Shares]
+      parameters:
+        - in: query
+          name: team_id
+          description: The team id
+          schema:
+            type: integer
+        - in: query
+          name: shareable_type
+          description: The type of shared items to fetch
+          schema:
+            type: string
+            enum: [bit,type,folder]
+      responses:
+        200:
+          description: The shared items
+          content:
+            application/json:
+              schema:
+                type: array
+    post:
+      summary: Share Item
+      tags: [Shares]
+      description: Share a bit, file or folder with a team, or with users of a team
+      requestBody:
+        description: The share payload
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                team_id:
+                  type: integer
+                shareable_type:
+                  type: string
+                  enum: [file,folder,bit]
+                shareable_id:
+                  type: integer
+                share:
+                  type: boolean
+                  description: Whether to share with share permission
+                edit:
+                  type: boolean
+                  description: Whether to share with edit permission
+                users:
+                  type: array
+                  description: An array of user ids to share the items with
+      responses:
+        200:
+          description: Item was shared successfully
+  /shares/{id}:
+    parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+    put:
+      summary: Update share permissions
+      description: Change the permissions of a shared item
+      tags: [Shares]
+      parameters:
+        - in: query
+          name: edit
+          schema:
+            type: integer
+        - in: query
+          name: share
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The permissions were successfully changed
+    delete:
+      summary: Revoke permissions
+      description: Revoke all permissions from a shared item
+      tags: [Shares]
+      responses:
+        200:
+          description: The permissions were revoked successfully
+  /shares/permissions:
+    get:
+      summary: Shared item permissions
+      tags: [Shares]
+      parameters:
+        - in: query
+          name: shareable_type
+          schema:
+            type: string
+            enum: [file,folder,bit]
+        - in: query
+          name: shareable_id
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The permisions that apply to a specific shared item
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  team_shared:
+                    type: boolean
+                    description: Whether the item is permanently shared with the team
+                  owner:
+                    $ref: '#/components/schemas/User'
+                  shares:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        user_id:
+                          type: integer
+                        name:
+                          type: string
+                        email:
+                          type: string
+                        photo:
+                          type: string
+                        share:
+                          type: boolean
+                        edit:
+                          type: boolean
+  /shares/team:
+    delete:
+      summary: Delete Team Share
+      description: Stops sharing an item with the team
+      tags: [Shares]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shareable_id:
+                  type: integer
+                shareable_type:
+                  type: string
+                  enum: [file, folder, bit]
+      responses:
+        200:
+          description: The revoked shares
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Share'
+  /shares/bulk:
+    post:
+      summary: Share bulk items
+      description: Share multiple items with multiple users
+      tags: [Shares,Bulk Actions]
+      requestBody:
+        description: The share payload
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                team_id:
+                  type: integer
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      shareable_id:
+                        type: integer
+                share:
+                  type: boolean
+                  description: Whether to share with share permission
+                edit:
+                  type: boolean
+                  description: Whether to share with edit permission
+                users:
+                  type: array
+                  description: An array of user ids to share the items with
+      responses:
+        200:
+          description: Items shared successfully
+    delete:
+      summary: Unshare Team
+      description: Removes all shares from an item in the team
+      tags: [Shares,Bulk Actions]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                team_id:
+                  type: integer
+                shareable_type:
+                  type: string
+                  enum: [file,folder,bit]
+                shareable_id:
+                  type: integer
+      responses:
+        200:
+          description: Shares removed successfully
+  /bulk/download:
+    get:
+      summary: Download in bulk
+      description: Zip and download all selected items in a streaming fashion
+      tags: [Bulk Actions]
+      parameters:
+        - in: query
+          name: files
+          description: An array of file ids
+          schema:
+            type: array
+        - in: query
+          name: folders
+          description: An array of folder ids
+          schema:
+            type: array
+      responses:
+        200:
+          description: A stream of the selected items, zipped
+  /bulk/move:
+    put:
+      summary: Move in bulk
+      description: Move one or more items together
+      tags: [Bulk Actions]
+      parameters:
+        - in: query
+          name: files
+          description: An array of file ids
+          schema:
+            type: array
+        - in: query
+          name: folders
+          description: An array of folder ids
+          schema:
+            type: array
+        - in: query
+          name: bits
+          description: An array of bit ids
+          schema:
+            type: array
+        - in: query
+          name: folder_id
+          description: The destination folder id
+          schema:
+            type: integer
+      responses:
+        200:
+          description: The items were moved successfully
+  /bulk/trash:
+    delete:
+      summary: Delete in bulk
+      description: Delete one or more items together
+      tags: [Bulk Actions]
+      parameters:
+        - in: query
+          name: files
+          description: An array of file ids
+          schema:
+            type: array
+        - in: query
+          name: folders
+          description: An array of folder ids
+          schema:
+            type: array
+        - in: query
+          name: bits
+          description: An array of bit ids
+          schema:
+            type: array
+      responses:
+        200:
+          description: The items were deleted successfully
+
+components:
+  responses:
+    ValidationFailed:
+      description: The provided request failed to pass validation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    DetailedSearch:
+      description: The search results when the 'detailed' parameter is true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              files:
+                type: array
+                items:
+                  $ref: '#/components/schemas/File'
+              folders:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Folder'
+              bits:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Bit'
+    Search:
+      description: The search results when the 'detailed' parameter is false
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              type: object
+              properties:
+                id:
+                  type: integer
+                title:
+                  type: string
+                highlights:
+                  type: array
+                type:
+                  type: string
+                  enum: [file, folder, bit]
+                folder_id:
+                  type: integer
+                  nullable: true
+    Activity200:
+      description: Activity of item with user
+      content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  major:
+                    type: integer
+                  action:
+                    type: string
+                  changes:
+                    type: object
+                  metadata:
+                    type: object
+                  user:
+                    $ref: '#/components/schemas/User'
+              example:
+                {
+                  "current_page": 1,
+                  "data": [
+                      {
+                          "major": 1,
+                          "action": "create",
+                          "changes": null,
+                          "metadata": null,
+                          "user_id": 6,
+                          "user": {
+                              "id": 6,
+                              "name": "User",
+                              "photo": null,
+                          }
+                      }
+                  ],
+                  "from": 1,
+                  "last_page": 1,
+                  "next_page_url": null,
+                  "per_page": 20,
+                  "prev_page_url": null,
+                  "to": 1,
+                  "total": 1
+                }
+  schemas:
+    Error:
+      description: A generic error response
+      type: object
+      properties:
+        error:
+          type: string
+          description: A unique name for the error
+        message:
+          type: string
+          description: Information describing the error
+        data:
+          type: array
+          description: Any related data for this error
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          properties:
+            data:
+              type: object
+              description: An object whose keys are the invalid parameters, and its values arrays of validation error messages
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        photo:
+          type: string
+          nullable: true
+        superuser:
+          type: boolean
+    Team:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        subdomain:
+          type: string
+        name:
+          type: string
+        photo:
+          type: string
+          nullable: true
+        user_id:
+          type: integer
+          description: The id of the owner of the team
+          readOnly: true
+    Invitation:
+      description: Represents an invitation to join a team
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        team_id:
+          type: integer
+          readOnly: true
+        contact:
+          type: string
+          description: The email address or phone number of the invitee
+        status:
+          type: string
+          enum: [pending,accepted,rejected]
+        created_at:
+          type: string
+          format: date
+        updated_at:
+          type: string
+          format: date
+    Folder:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        folder_id:
+          type: integer
+          nullable: true
+        team_id:
+          type: integer
+        user_id:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date
+        updated_at:
+          type: string
+          format: date
+    Bit:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          nullable: false
+          type: string
+        type_id:
+          nullable: false
+          type: integer
+          writeOnly: true
+        folder_id:
+          type: integer
+          writeOnly: true
+        tags:
+          type: array
+          items:
+            type: string
+    BitInfo:
+      type: object
+      properties:
+        tags:
+          type: array
+          description: The tags of the bit
+          items:
+            type: string
+        token:
+          type: string
+          description: The token to use inside the iframe
+        url:
+          type: string
+          description: The URL of the bit front-end
+    BitType:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        description:
+          type: string
+        icon:
+          type: string
+    Pin:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        type_id:
+          type: integer
+          writeOnly: true
+        team_id:
+          type: integer
+          writeOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        favourite:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/User'
+    PhotoPin:
+      allOf:
+        - $ref: '#/components/schemas/Pin'
+        - type: object
+          properties:
+            content:
+              type: object
+              properties:
+                url:
+                  type: string
+                title:
+                  type: string
+    VideoPin:
+      allOf:
+        - $ref: '#/components/schemas/Pin'
+        - type: object
+          properties:
+            content:
+              type: object
+              properties:
+                url:
+                  type: string
+    MapPin:
+      allOf:
+        - $ref: '#/components/schemas/Pin'
+        - type: object
+          properties:
+            content:
+              type: object
+              properties:
+                url:
+                  type: string
+    TextNotePin:
+      allOf:
+        - $ref: '#/components/schemas/Pin'
+        - type: object
+          properties:
+            content:
+              type: object
+              properties:
+                content:
+                  type: string
+    ReminderPin:
+      allOf:
+        - $ref: '#/components/schemas/Pin'
+        - type: object
+          properties:
+            content:
+              type: object
+              properties:
+                title:
+                  type: string
+                content:
+                  type: string
+    AnnouncementPin:
+      allOf:
+        - $ref: '#/components/schemas/Pin'
+        - type: object
+          properties:
+            content:
+              type: object
+              properties:
+                title:
+                  type: string
+                subtitle:
+                  type: string
+                date_from:
+                  type: string
+                date_to:
+                  type: string
+    PinResponse:
+      oneOf:
+        - $ref: '#/components/schemas/VideoPin'
+        - $ref: '#/components/schemas/MapPin'
+        - $ref: '#/components/schemas/ReminderPin'
+        - $ref: '#/components/schemas/AnnouncementPin'
+        - $ref: '#/components/schemas/TextNotePin'
+        - $ref: '#/components/schemas/PhotoPin'
+    File:
+      type: object
+      description: Represents a user-uploaded file
+      properties:
+        title:
+          type: string
+        path:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+          description: The size of the file in bytes
+        mime_type:
+          type: string
+        extension:
+          type: string
+        user_id:
+          type: integer
+          readOnly: true
+        folder_id:
+          type: integer
+          readOnly: true
+    FileVersion:
+      type: object
+      description: Represents a version of a file
+      properties:
+        name:
+          type: string
+        s3_id:
+          type: string
+          readOnly: true
+        filename:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        keep:
+          type: boolean
+          description: Whether this version should be kept forever
+        current:
+          type: boolean
+          readOnly: true
+          description: Whether this version is the current version
+        extension:
+          type: string
+          readOnly: true
+        user_id:
+          type: integer
+          readOnly: true
+        file_id:
+          type: integer
+          readOnly: true
+    Share:
+      type: object
+      description: Represents a "share" relation between an item and a user
+      properties:
+        user_id:
+          type: integer
+          description: The id of the recipient user
+        created_by_id:
+          type: integer
+          description: The id of the user that shared the item
+        shareable_id:
+          type: integer
+          description: The id of the shared item
+        shareable_type:
+          type: string
+          enum: [file, folder, bit]
+          description: The type of the shared item
+        edit:
+          type: boolean
+          description: Whether the recipient user can edit the item
+        share:
+          type: boolean
+          description: Whether the recipient user can further share the item
+        rename:
+          type: string
+          description: The title the recipient user gave the shared item
+    Integration:
+      type: object
+      description: An integration of a team with an external service
+      properties:
+        name:
+          type: string
+        secret:
+          type: string
+          readOnly: true
+        key:
+          type: string
+          readOnly: true
+  securitySchemes:
+    JWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    
